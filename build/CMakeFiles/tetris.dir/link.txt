@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/tetris.dir/link.d CMakeFiles/tetris.dir/main.cpp.o CMakeFiles/tetris.dir/Game.cpp.o CMakeFiles/tetris.dir/Board.cpp.o -o tetris  -lcurses -lpthread
