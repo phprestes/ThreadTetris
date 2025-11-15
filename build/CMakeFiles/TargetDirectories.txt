@@ -1,3 +1,0 @@
-/home/phprestes/Documents/ThreadTetris/build/CMakeFiles/tetris.dir
-/home/phprestes/Documents/ThreadTetris/build/CMakeFiles/edit_cache.dir
-/home/phprestes/Documents/ThreadTetris/build/CMakeFiles/rebuild_cache.dir
