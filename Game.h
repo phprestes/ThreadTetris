@@ -6,7 +6,6 @@
 #include <atomic>
 #include <queue>
 #include <ncurses.h>
-#include <mutex>
 
 class Game {
 public:

@@ -118,7 +118,7 @@ void Game::render_loop() {
         mvwprintw(score_win, 3, 2, "Pressione 'q' para sair");
         wrefresh(score_win);
 
-        // Checa o estado dos tabuleiros (protegido por mutex)
+        // Checa o estado dos tabuleiros
         bool p1_lost, p2_lost;
 
         p1_board_sem.acquire();
