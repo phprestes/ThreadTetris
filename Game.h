@@ -2,11 +2,11 @@
 
 #include "Board.h"
 #include <thread>
-#include <mutex>
-#include <condition_variable>
+#include <semaphore>
 #include <atomic>
 #include <queue>
 #include <ncurses.h>
+#include <mutex>
 
 class Game {
 public:
@@ -29,21 +29,19 @@ private:
     int p1_score, p2_score;
 
     // Sincronização
-    std::mutex p1_mutex, p2_mutex, render_mutex;
+    std::binary_semaphore p1_board_sem{1};
+    std::binary_semaphore p2_board_sem{1};
 
-    std::mutex p1_garbage_mutex;
-    std::condition_variable p1_garbage_cv;
-    int p1_garbage_count{0};
-
-    // Para o lixo do Jogador 2
-    std::mutex p2_garbage_mutex;
-    std::condition_variable p2_garbage_cv;
-    int p2_garbage_count{0};
+    // Para o lixo dos jogadores
+    std::counting_semaphore<100> p1_garbage_sem{0};
+    std::counting_semaphore<100> p2_garbage_sem{0};
 
     // Filas de Input
     std::queue<int> p1_input_queue;
     std::queue<int> p2_input_queue;
-    std::mutex p1_input_mutex, p2_input_mutex;
+
+    std::binary_semaphore p1_input_sem{1}; // Inicializado com 1
+    std::binary_semaphore p2_input_sem{1}; // Inicializado com 1
 
     // As 4 Threads
     std::thread t_input;
