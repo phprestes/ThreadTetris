@@ -5,19 +5,21 @@
 
 using namespace std::chrono_literals;
 
+// Inicializa as pontuações e o estado do jogo
 Game::Game() : game_over(false), p1_score(0), p2_score(0) {
     init_curses();
 }
 
+// Destrutor: limpa threads e ncurses
 Game::~Game() {
-    // É crucial dar join() nas threads para o programa sair limpo
+    // Espera todas as threads terminarem.
     // A flag game_over (atômica) garante que elas vão parar
     if (t_input.joinable()) t_input.join();
     if (t_render.joinable()) t_render.join();
     if (t_player1.joinable()) t_player1.join();
     if (t_player2.joinable()) t_player2.join();
 
-    cleanup_curses(); // Limpa o ncurses DEPOIS que as threads pararem
+    cleanup_curses(); // Limpa o ncurses depois que as threads pararem
 }
 
 /// @brief Configura o ncurses para exibir o jogo no terminal
@@ -61,12 +63,9 @@ void Game::run() {
     t_player1 = std::thread(&Game::player_loop, this, 1);
     t_player2 = std::thread(&Game::player_loop, this, 2);
 
-    // O main thread fica "preso" aqui.
-    // O destrutor fará o join() quando o jogo acabar (o que não acontece aqui).
-    // Para um loop de jogo simples, podemos esperar a thread de input terminar.
+    // thread principal aguarda a thread de input terminar(fim do jogo)
     t_input.join(); 
-    // Quando t_input terminar (usuário apertou 'q'), game_over será true,
-    // e as outras threads vão parar. O destrutor cuidará do resto.
+    // Quando t_input terminar (usuário apertou 'q'), as threads de jogador e renderização também terminarão
 }
 
 /// @brief THREAD 1: INPUT
@@ -98,9 +97,11 @@ void Game::input_loop() {
 }
 
 /// @brief THREAD 2: RENDER
+// Atualiza a tela com o estado atual do jogo
 void Game::render_loop() {
     while (!game_over) {
         {
+            //p1_mutex e p2_mutex são travados para garantir que os tabuleiros não mudem enquanto sao desenhados
             std::lock_guard lock1(p1_mutex);
             std::lock_guard lock2(p2_mutex);
             p1_board.draw(p1_win);
@@ -114,53 +115,50 @@ void Game::render_loop() {
         mvwprintw(score_win, 3, 2, "Pressione 'q' para sair");
         wrefresh(score_win);
 
-// ... (código que desenha os placares) ...
-
-// Checa o estado dos tabuleiros (protegido por mutex)
-bool p1_lost, p2_lost;
-{
-    std::lock_guard lock1(p1_mutex);
-    p1_lost = p1_board.is_game_over();
-}
-{
-    std::lock_guard lock2(p2_mutex);
-    p2_lost = p2_board.is_game_over();
-}
-
-
-    if (p1_lost || p2_lost) {
-        game_over = true; 
-        
-        // Atualiza a tela uma última vez com o estado final
+        // Checa o estado dos tabuleiros (protegido por mutex)
+        bool p1_lost, p2_lost;
         {
             std::lock_guard lock1(p1_mutex);
+            p1_lost = p1_board.is_game_over();
+        }
+        {
             std::lock_guard lock2(p2_mutex);
-            p1_board.draw(p1_win);
-            p2_board.draw(p2_win);
+            p2_lost = p2_board.is_game_over();
         }
 
-        // Exibe o vencedor
-        mvwprintw(score_win, 1, 25, "FIM DE JOGO!");
-        if (p1_lost && !p2_lost) {
-            mvwprintw(score_win, 2, 25, "Jogador 2 Venceu!");
-        } else if (p2_lost && !p1_lost) {
-            mvwprintw(score_win, 2, 25, "Jogador 1 Venceu!");
-        } else {
-            mvwprintw(score_win, 2, 25, "Empate!"); // Caso raro
+        if (p1_lost || p2_lost) {
+            game_over = true; 
+            
+            // Atualiza a tela uma última vez com o estado final
+            {
+                std::lock_guard lock1(p1_mutex);
+                std::lock_guard lock2(p2_mutex);
+                p1_board.draw(p1_win);
+                p2_board.draw(p2_win);
+            }
+
+            // Exibe o vencedor
+            mvwprintw(score_win, 1, 25, "FIM DE JOGO!");
+            if (p1_lost && !p2_lost) {
+                mvwprintw(score_win, 2, 25, "Jogador 2 Venceu!");
+            } else if (p2_lost && !p1_lost) {
+                mvwprintw(score_win, 2, 25, "Jogador 1 Venceu!");
+            } else {
+                mvwprintw(score_win, 2, 25, "Empate!"); // Caso raro
+            }
+            
+            // Muda o ncurses para o modo de input "bloqueante"
+            nodelay(stdscr, FALSE);
+            
+            // Sobrescreve a mensagem de ajuda
+            mvwprintw(score_win, 3, 2, "Pressione 'q' para sair... "); 
+            wrefresh(score_win);
+            
+            // Fica preso aqui até o usuário pressionar 'q'
+            while (getch() != 'q') {
+                // Espera
+            }
         }
-        
-        // Muda o ncurses para o modo de input "bloqueante"
-        nodelay(stdscr, FALSE);
-        
-        // Sobrescreve a mensagem de ajuda
-        mvwprintw(score_win, 3, 2, "Pressione 'q' para sair... "); 
-        wrefresh(score_win);
-        
-        // Fica preso aqui até o usuário pressionar 'q'
-        while (getch() != 'q') {
-            // Espera
-        }
-    }
 
         std::this_thread::sleep_for(33ms); // ~30 FPS
     }
